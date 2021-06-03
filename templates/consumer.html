@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tasks Consumer</title>
+
+    <link rel="stylesheet" href="{{url_for('static',filename='css/bootstrap.min.css')}}">
+    <link rel="stylesheet" href="{{url_for('static',filename='css/Chart.min.css')}}">
+</head>
+<body>
+    <div class="content">
+        <div id="Messages" class="content" style="height:200px;width:100%; border:1px solid gray; overflow-y:scroll;"></div>
+    </div>
+
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <canvas id="canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- import the jquery library -->
+    <script src="{{ url_for('static',filename='js/jquery.min.js') }}"></script>
+    <!-- import the socket.io library -->
+    <script src="{{ url_for('static',filename='js/socket.io.js') }}"></script>
+
+    <!-- import the bootstrap library -->
+    <script src="{{ url_for('static',filename='js/bootstrap.min.js') }}"></script>
+    <!-- import the Chart library -->
+    <script src="{{ url_for('static',filename='js/Chart.min.js') }}"></script>
+
+<script>
+      $(document).ready(function(){
+        const config = {
+            //Type of the chart - Bar Chart
+            type: 'bar',
+            //Data for our chart
+            data: {
+                labels: ['Low','Moderate','Major','Critical'],
+                datasets: [{
+                    label: "Count Of Tasks",
+                    //Setting a color for each bar
+                    backgroundColor: ['green','blue','yellow','red'],
+                    borderColor: 'rgb(255, 99, 132)',
+                    data: [0,0,0,0],
+                    fill: false,
+                }],
+            },
+            //Configuration options
+            options: {
+                responsive: true,
+                title: {
+                    display: true,
+                    text: 'Tasks Priority Matrix'
+                },
+                tooltips: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                hover: {
+                    mode: 'nearest',
+                    intersect: true
+                },
+                scales: {
+                    xAxes: [{
+                        display: true,
+                        scaleLabel: {
+                            display: true,
+                            labelString: 'Priority'
+                        }
+                    }],
+                    yAxes: [{
+                        display: true
+                     ,ticks: {
+                            beginAtZero: true
+                        }
+                       ,scaleLabel: {
+                            display: true,
+                            labelString: 'Total'
+                        }
+                    }]
+                }
+            }
+        };
+        const context = document.getElementById('canvas').getContext('2d');
+        //Creating the bar chart
+        const lineChart = new Chart(context, config);
+
+
+        //Reserved for websocket manipulation
+        var namespace='/collectHooks';
+        var url = 'http://' + document.domain + ':' + location.port + namespace;
+        var socket = io.connect(url);
+
+        //When connecting to the socket join the room
+        socket.on('connect', function() {
+                              socket.emit('join_room');
+                            });
+
+        //When receiving a message
+        socket.on('msg' , function(data) {
+                            var msg = JSON.parse(data);
+                            var newLine = $('<li>'+ 'Batch ID. = ' + msg.batchid + ' -- Task ID. = ' + msg.id + ' -- Owner = ' + msg.owner + ' -- Priority = ' + msg.priority +'</li>');
+                            newLine.css("color","blue");
+                            $("#Messages").append(newLine);
+
+                            //Retrieve the index of the priority of the received message
+                            var lindex = config.data.labels.indexOf(msg.priority);
+
+                            //Increment the value of the priority of the received message
+                            config.data.datasets[0].data[lindex] += 1;
+
+                            //Update the chart
+                            lineChart.update();
+                          });
+      });
+</script>
+</body>
+</html>
